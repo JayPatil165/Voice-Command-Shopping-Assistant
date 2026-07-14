@@ -207,7 +207,8 @@ RULES:
 1. Extract exact quantities. "4kg potatoes" -> name:"potatoes", quantity:"4kg".
 2. If the user mentions a specific list (e.g., "add in a list stationary", "to my groceries list"), you MUST extract that name into `target_list_name` (e.g., "stationary", "groceries").
 3. If the user wants to add items to a new or existing list, ALWAYS set action to "add". Do NOT use "create_list" or "update" if they are also adding items.
-4. If adding items that require units but omitted (e.g. "add 4 milk"), set 'follow_up_question' to clarify ("Did you mean 4 gallons?"). Do NOT add the item if follow_up_question is set.
+4. If the user JUST wants to create a list without adding items yet (e.g. "create a list called groceries"), set action to "create_list" and put the name in `target_list_name`. Do NOT add any items.
+5. If adding items that require units but omitted (e.g. "add 4 milk"), set 'follow_up_question' to clarify ("Did you mean 4 gallons?"). Do NOT add the item if follow_up_question is set.
 Cmd: '{request.text}'"""
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
