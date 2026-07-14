@@ -191,7 +191,7 @@ def parse_voice_command(request: VoiceCommandRequest):
         if not GEMINI_API_KEY:
             return mock_nlp_parser(request.text, request.current_items)
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={GEMINI_API_KEY}"
         
         lists_context = f"Lists:{','.join(request.available_lists)}" if request.available_lists else ""
         prompt = f"""Extract shopping intent. {lists_context}
@@ -243,7 +243,7 @@ def get_suggestions(request: SuggestionRequest):
         return SuggestionResponse(suggestions=["Milk", "Bread", "Eggs"], reason="Fallback suggestions")
 
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={GEMINI_API_KEY}"
         current_names = [i.get("name", "") for i in request.current_items]
         
         prompt = f"""List Name: '{request.list_name or "General"}'
