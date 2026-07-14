@@ -29,10 +29,12 @@ type ShoppingItem = {
 };
 
 type IntentResponse = {
-  action: "add" | "remove" | "update" | "search" | "suggest" | "create_list";
+  action: "add" | "remove" | "update" | "search" | "suggest" | "create_list" | "rename_list";
   target_list_name?: string | null;
+  new_list_name?: string | null;
   items: ShoppingItem[];
   original_text: string;
+  follow_up_question?: string | null;
 };
 
 type BrowserSpeechRecognition = {
