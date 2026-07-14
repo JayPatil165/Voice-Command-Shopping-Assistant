@@ -29,7 +29,7 @@ type ShoppingItem = {
 };
 
 type IntentResponse = {
-  action: "add" | "remove" | "update" | "search" | "suggest" | "create_list" | "rename_list";
+  action: "add" | "remove" | "update" | "search" | "suggest" | "create_list" | "rename_list" | "delete_list";
   target_list_name?: string | null;
   new_list_name?: string | null;
   items: ShoppingItem[];
