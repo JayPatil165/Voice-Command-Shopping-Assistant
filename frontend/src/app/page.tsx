@@ -680,8 +680,10 @@ export default function ShoppingAssistant() {
 
             <ScrollArea className="flex-1 px-4">
               {isLoadingItems ? (
-                <div className="flex items-center justify-center py-12">
-                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="flex flex-col gap-4 py-8">
+                   {[1,2,3].map(i => (
+                     <div key={i} className="w-full h-20 bg-muted/40 animate-pulse rounded-3xl border border-border" />
+                   ))}
                 </div>
               ) : filteredItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -689,10 +691,10 @@ export default function ShoppingAssistant() {
                   <p>Your list is empty.</p>
                 </div>
               ) : (
-                <div className="space-y-3 py-4">
+                <div className="space-y-4 py-4">
                   {filteredItems.map((item) => (
-                    <Card key={item.id} className={`overflow-hidden transition-all hover:shadow-sm backdrop-blur-sm border-2 ${getCategoryBorder(item.category)} ${item.is_completed ? 'bg-muted/10 border-dashed opacity-60' : 'bg-background/60'}`}>
-                      <CardContent className="flex items-center justify-between p-4">
+                    <Card key={item.id} className={`overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 backdrop-blur-sm border-2 rounded-3xl ${getCategoryBorder(item.category)} ${item.is_completed ? 'bg-muted/10 border-dashed opacity-60' : 'bg-background/80 shadow-sm'}`}>
+                      <CardContent className="flex items-center justify-between p-5">
                         <div className="flex items-center gap-4">
                           <button 
                              onClick={() => toggleItemStatus(item)} 
@@ -735,19 +737,19 @@ export default function ShoppingAssistant() {
           </div>
         )}
 
-        <div className="fixed bottom-0 left-64 right-0 z-50 flex flex-col items-center border-t bg-background p-4 pb-6 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <div className="fixed bottom-0 md:left-64 left-0 right-0 z-50 flex flex-col items-center border-t bg-background/95 backdrop-blur-md p-4 pb-2 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
           {isRecording && (
-            <div className="mb-4 flex items-center gap-2 rounded-2xl border border-red-200 bg-red-100 px-4 py-2 text-sm text-red-600 shadow-sm dark:border-red-800 dark:bg-red-900/30 dark:text-red-400">
-              <div className="h-2 w-2 animate-pulse rounded-full bg-red-600" />
-              Listening... click mic to finish
+            <div className="mb-4 flex items-center gap-2 rounded-full border border-red-200 bg-red-100 px-5 py-2.5 text-sm font-medium text-red-600 shadow-sm dark:border-red-800 dark:bg-red-900/30 dark:text-red-400 animate-in fade-in zoom-in duration-300">
+              <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-600" />
+              Listening... tap mic to finish
             </div>
           )}
 
           {transcription && (
-            <div className="mb-4 max-w-[80%] rounded-2xl border bg-background px-4 py-2 text-center text-sm text-foreground shadow-sm">
+            <div className="mb-4 max-w-[85%] rounded-full border bg-background px-5 py-2.5 text-center text-sm font-medium text-foreground shadow-sm animate-in fade-in zoom-in duration-300">
               {isProcessing ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-foreground" />
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
                   Parsing: &quot;{transcription}&quot;
                 </span>
               ) : (
@@ -757,23 +759,23 @@ export default function ShoppingAssistant() {
           )}
           
           {followUpQuestion && (
-            <div className="w-full max-w-2xl px-4 mb-2">
-              <div className="w-full bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 p-3 rounded-md flex items-start gap-2 shadow-sm border border-blue-200 dark:border-blue-800 animate-in slide-in-from-bottom-2">
-                <span className="text-xl">🤖</span>
-                <div className="flex-1 text-sm font-medium">
+            <div className="w-full max-w-2xl px-4 mb-3">
+              <div className="w-full bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 p-4 rounded-2xl flex items-start gap-3 shadow-sm border border-blue-200 dark:border-blue-800 animate-in slide-in-from-bottom-2">
+                <span className="text-2xl mt-0.5">🤖</span>
+                <div className="flex-1 text-sm font-medium leading-relaxed">
                   {followUpQuestion}
                 </div>
-                <button onClick={() => setFollowUpQuestion(null)} className="text-blue-500 hover:text-blue-700">
+                <button onClick={() => setFollowUpQuestion(null)} className="text-blue-500 hover:text-blue-700 bg-blue-100/50 hover:bg-blue-200 p-1.5 rounded-full transition-colors">
                   <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
           )}
 
-          <div className="flex items-center gap-2 w-full max-w-2xl px-4">
+          <div className="flex items-center gap-3 w-full max-w-2xl px-2 mb-2">
             <Input
               placeholder="Try: 'create a list groceries' or 'add 4kg potatoes to groceries'"
-              className="flex-1 bg-background border-input focus-visible:ring-primary rounded-xl px-6 h-12"
+              className="flex-1 bg-muted/30 border-input focus-visible:ring-primary focus-visible:bg-background rounded-full px-6 h-14 text-base shadow-inner transition-all"
               disabled={isRecording || isProcessing}
               value={typedCommand}
               onChange={(event) => setTypedCommand(event.target.value)}
@@ -788,12 +790,16 @@ export default function ShoppingAssistant() {
               size="icon"
               variant={isRecording ? "destructive" : "default"}
               disabled={isProcessing}
-              className={`h-12 w-12 rounded-full shadow-md transition-transform ${isRecording ? "scale-110" : "hover:scale-105"}`}
+              className={`h-14 w-14 rounded-full shadow-lg transition-all duration-300 ${isRecording ? "scale-110 shadow-red-500/30 ring-4 ring-red-500/20" : "hover:scale-105 hover:shadow-primary/30"}`}
               onClick={toggleListen}
               title="Start voice command"
             >
-              {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+              {isRecording ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
             </Button>
+          </div>
+          
+          <div className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold">
+            Developed by Jay Ajitkumar Patil
           </div>
         </div>
       </main>

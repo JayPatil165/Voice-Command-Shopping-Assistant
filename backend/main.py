@@ -194,8 +194,9 @@ def parse_voice_command(request: VoiceCommandRequest):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
         
         lists_context = f"Lists:{','.join(request.available_lists)}" if request.available_lists else ""
-        prompt = f"""Extract shopping intent. {lists_context}
-Return ONLY valid JSON:
+        prompt = f"""You are a highly intelligent Shopping Assistant NLP Engine. Your job is to deeply understand conversational English, interpret the true meaning (including self-corrections or messy phrasing), and map it to a structured JSON intent.
+Context: {lists_context}
+Return ONLY valid JSON matching this schema:
 {{
   "action": "add"|"remove"|"update"|"search"|"suggest"|"delete_list"|"rename_list",
   "target_list_name": "string(optional)",
@@ -204,11 +205,12 @@ Return ONLY valid JSON:
   "follow_up_question": "string(optional)"
 }}
 RULES:
-1. Extract exact quantities. "4kg potatoes" -> name:"potatoes", quantity:"4kg".
-2. If the user mentions a specific list (e.g., "create a list stationary", "add to my groceries list"), you MUST extract that name into `target_list_name` (e.g., "stationary", "groceries").
-3. If the user wants to add items OR create a list, ALWAYS set action to "add". The app will automatically create the list if it doesn't exist.
-4. If adding items that require units but omitted (e.g. "add 4 milk"), set 'follow_up_question' to clarify. Do NOT add the item if follow_up_question is set.
-Cmd: '{request.text}'"""
+1. COMPREHEND TOTAL MEANING: Look past bad grammar or stumbles. If the user says "actually no, make it 3", update the quantity intelligently.
+2. LIST ROUTING: If they mention a specific list (e.g. "put it in groceries", "create a list for camping and add a tent"), extract the list name into `target_list_name`.
+3. CREATE = ADD: If the user wants to create a list OR add items, ALWAYS use the "add" action. The system will auto-create the list if it doesn't exist.
+4. EXACT QUANTITIES: Extract quantities perfectly ("2 dozen eggs" -> name:"eggs", quantity:"2 dozen").
+5. UNITS: If an item needs a unit but it's missing (e.g. "add 4 milk"), set 'follow_up_question' to clarify ("Did you mean 4 gallons or cartons?"). Do NOT add the item if you set this.
+User Command: '{request.text}'"""
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
         resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=15)
