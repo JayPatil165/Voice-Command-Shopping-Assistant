@@ -23,7 +23,9 @@ export function Sidebar({
   isLoading,
   onOpenProfile,
   onDeleteList,
-  onRenameList
+  onRenameList,
+  isOpen,
+  onClose
 }: {
   activeListId: string | null;
   setActiveListId: (id: string) => void;
@@ -33,6 +35,8 @@ export function Sidebar({
   onOpenProfile: () => void;
   onDeleteList: (list: ShoppingList) => void;
   onRenameList: (list: ShoppingList) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }) {
   const { token, username, logout } = useAuth();
   const [newListName, setNewListName] = useState("");
@@ -69,7 +73,15 @@ export function Sidebar({
   };
 
   return (
-    <div className="flex w-64 flex-col border-r bg-card z-20 shadow-[4px_0_24px_rgba(0,0,0,0.05)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] h-full">
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <div className={`fixed md:relative flex w-64 flex-col border-r bg-card z-40 shadow-[4px_0_24px_rgba(0,0,0,0.05)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)] h-full transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       <div className="p-4 border-b flex items-center justify-between">
         <h2 className="font-semibold tracking-tight text-lg flex items-center gap-2">
           <ListIcon className="h-5 w-5" /> My Lists
@@ -157,5 +169,6 @@ export function Sidebar({
         </div>
       </div>
     </div>
+    </>
   );
 }

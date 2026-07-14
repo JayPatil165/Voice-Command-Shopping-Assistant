@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Mic, MicOff, Search, ShoppingCart, Trash2, SlidersHorizontal, List as ListIcon, X, CheckCircle2, Circle, Plus } from "lucide-react";
+import { Loader2, Mic, MicOff, Search, ShoppingCart, Trash2, SlidersHorizontal, List as ListIcon, X, CheckCircle2, Circle, Plus, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -55,6 +55,10 @@ const categoryColors: Record<string, string> = {
   Bakery: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800",
   Meat: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
   Snacks: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800",
+  Stationery: "bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800",
+  Hardware: "bg-stone-100 text-stone-800 border-stone-200 dark:bg-stone-900/30 dark:text-stone-300 dark:border-stone-700",
+  Household: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800",
+  Party: "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800",
   Groceries: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
   General: "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
 };
@@ -68,6 +72,9 @@ const getCategoryBorder = (category: string) => {
     case "Pantry": return "border-orange-200 dark:border-orange-800/50";
     case "Frozen": return "border-cyan-200 dark:border-cyan-800/50";
     case "Household": return "border-slate-200 dark:border-slate-800/50";
+    case "Stationery": return "border-violet-200 dark:border-violet-800/50";
+    case "Hardware": return "border-stone-200 dark:border-stone-700/50";
+    case "Party": return "border-pink-200 dark:border-pink-800/50";
     default: return "border-zinc-200 dark:border-zinc-800/50";
   }
 };
@@ -77,8 +84,8 @@ function getCategoryColor(category: string) {
 }
 
 export default function ShoppingAssistant() {
-  const { token, isInitialized, login } = useAuth();
-  
+  const { token, login, isInitialized } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [isLoadingLists, setIsLoadingLists] = useState(true);
   
@@ -136,42 +143,30 @@ export default function ShoppingAssistant() {
   }, [token, activeListId]);
 
   useEffect(() => {
-    fetchLists();
-  }, [fetchLists]);
+    if (token) fetchLists();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-  const fetchItems = useCallback(async () => {
-    if (!activeListId || !token) return;
-    setIsLoadingItems(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/lists/${activeListId}/items`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Failed to fetch items");
-      const data = await res.json();
-      setItems(data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Could not load list items.");
-    } finally {
-      setIsLoadingItems(false);
-    }
-  }, [activeListId, token]);
-
-  const fetchSuggestions = useCallback(async () => {
+  const fetchSuggestions = useCallback(async (overrideItems?: ShoppingItem[]) => {
      if (!activeListId || !token) return;
      const activeList = lists.find(l => l.id === activeListId);
      const listName = activeList ? activeList.name : "General";
+     const itemsToUse = overrideItems || items;
      
      setIsLoadingSuggestions(true);
      try {
          const sugRes = await fetch(`${API_BASE_URL}/api/suggestions`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ current_items: items, list_name: listName })
+            body: JSON.stringify({ current_items: itemsToUse, list_name: listName })
          });
          if (sugRes.ok) {
             const sugData = await sugRes.json();
-            setSuggestions(sugData.suggestions);
+            const existingNames = new Set(itemsToUse.map((item) => item.name.trim().toLowerCase()));
+            const cleanedSuggestions = (sugData.suggestions as string[])
+              .filter((suggestion) => suggestion && !existingNames.has(suggestion.trim().toLowerCase()))
+              .slice(0, 3);
+            setSuggestions(cleanedSuggestions);
             setSuggestionsReason(sugData.reason);
          } else {
             toast.error("AI Suggestions failed or rate limited. Try again later.");
@@ -183,6 +178,56 @@ export default function ShoppingAssistant() {
          setIsLoadingSuggestions(false);
      }
   }, [activeListId, token, items, lists]);
+
+  const fetchItems = useCallback(async () => {
+    if (!activeListId || !token) return;
+    setIsLoadingItems(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/lists/${activeListId}/items`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Failed to fetch items");
+      const data = await res.json();
+      setItems(data);
+      fetchSuggestions(data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not load list items.");
+    } finally {
+      setIsLoadingItems(false);
+    }
+  }, [activeListId, token, fetchSuggestions]);
+
+  const refreshItemsForList = useCallback(async (listId: string, listNameOverride?: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/lists/${listId}/items`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Failed to refresh items");
+      const freshItems = await res.json();
+      setItems(freshItems);
+
+      const listName = listNameOverride || lists.find((list) => list.id === listId)?.name || "General";
+      const sugRes = await fetch(`${API_BASE_URL}/api/suggestions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ current_items: freshItems, list_name: listName })
+      });
+      if (sugRes.ok) {
+        const sugData = await sugRes.json();
+        const existingNames = new Set(freshItems.map((item: ShoppingItem) => item.name.trim().toLowerCase()));
+        const cleanedSuggestions = (sugData.suggestions as string[])
+          .filter((suggestion) => suggestion && !existingNames.has(suggestion.trim().toLowerCase()))
+          .slice(0, 3);
+        setSuggestions(cleanedSuggestions);
+        setSuggestionsReason(sugData.reason);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not refresh list items.");
+    }
+  }, [token, lists]);
 
   const toggleItemStatus = async (item: ShoppingItem) => {
     if (!token) return;
@@ -209,8 +254,9 @@ export default function ShoppingAssistant() {
   };
 
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+    if (activeListId && token) fetchItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeListId, token]);
 
   const applyIntent = useCallback(async (data: IntentResponse, sourceText: string) => {
     if (!token) return;
@@ -221,6 +267,7 @@ export default function ShoppingAssistant() {
     
     let targetListId = activeListId;
     let targetItems = items;
+    let targetListName = lists.find((list) => list.id === activeListId)?.name;
     
     // Cross-list support
     if (data.target_list_name) {
@@ -234,6 +281,7 @@ export default function ShoppingAssistant() {
              if (res.ok) targetItems = await res.json();
              setActiveListId(targetListId);
           }
+          targetListName = existingList.name;
        } else {
           // Auto-create list
           const res = await fetch(`${API_BASE_URL}/api/lists`, {
@@ -245,6 +293,7 @@ export default function ShoppingAssistant() {
              const newList = await res.json();
              setLists(prev => [...prev, newList]);
              targetListId = newList.id;
+             targetListName = newList.name;
              targetItems = [];
              setActiveListId(targetListId);
              toast.success(`Created new list: ${newList.name}`);
@@ -324,7 +373,7 @@ export default function ShoppingAssistant() {
         }
       }
       toast.success(`Added/Updated ${added} item(s).`);
-      fetchItems();
+      await refreshItemsForList(targetListId, targetListName);
       return;
     }
 
@@ -343,7 +392,7 @@ export default function ShoppingAssistant() {
          });
       }
       toast.success(`Removed ${toRemove.length} item(s).`);
-      fetchItems();
+      await refreshItemsForList(targetListId, targetListName);
       return;
     }
 
@@ -363,7 +412,7 @@ export default function ShoppingAssistant() {
         }
       }
       toast.success("Items updated.");
-      fetchItems();
+      await refreshItemsForList(targetListId, targetListName);
       return;
     }
 
@@ -375,7 +424,7 @@ export default function ShoppingAssistant() {
     }
 
     toast.success(`Intent parsed as: ${data.action}`);
-  }, [activeListId, token, items, lists, fetchItems]);
+  }, [activeListId, token, items, lists, refreshItemsForList]);
 
   const processTextCommand = useCallback(async (text: string, fromVoice = false) => {
     const command = text.trim();
@@ -416,7 +465,7 @@ export default function ShoppingAssistant() {
     } finally {
       setIsProcessing(false);
     }
-  }, [applyIntent, items, lists]);
+  }, [applyIntent, items, lists, previousCommand]);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
@@ -588,6 +637,7 @@ export default function ShoppingAssistant() {
   }
 
   const allCategories = ["All", ...Array.from(new Set(items.map(i => i.category)))];
+  const activeListName = lists.find((list) => list.id === activeListId)?.name;
 
   return (
     <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
@@ -600,13 +650,23 @@ export default function ShoppingAssistant() {
         onOpenProfile={() => setIsProfileOpen(true)}
         onDeleteList={(list) => setListToDelete(list)}
         onRenameList={(list) => { setListToRename(list); setRenameInput(list.name); }}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
-      <main className="flex-1 flex flex-col relative h-full bg-muted/20 pb-24">
+      <main className="flex-1 flex flex-col relative h-full bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 dark:from-indigo-950/20 dark:via-background dark:to-purple-900/20 pb-24 md:pb-0 overflow-y-auto">
         {activeListId ? (
           <>
             <div className="flex flex-col gap-3 p-4 bg-background border-b shadow-sm z-10 sticky top-0">
               <div className="flex gap-2 w-full">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="md:hidden shrink-0" 
+                  onClick={() => setIsSidebarOpen(true)}
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
                 <div className="relative flex-1">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -641,60 +701,26 @@ export default function ShoppingAssistant() {
                    </button>
                  ))}
                  
-                 {/* AI Suggestions Trigger */}
-                 <button
-                    onClick={fetchSuggestions}
-                    disabled={isLoadingSuggestions}
-                    className="ml-auto px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all border border-blue-400 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700 flex items-center gap-1 shadow-sm"
-                 >
-                    ✨ Get AI Ideas
-                 </button>
-              </div>
-              
-              {/* AI Suggestions UI */}
-              {(suggestions.length > 0 || isLoadingSuggestions) && (
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide mt-2 border-t pt-3">
-                  <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1 whitespace-nowrap">
-                    ✨ Suggestions:
-                  </span>
-                  {isLoadingSuggestions ? (
-                    <div className="flex items-center gap-2">
-                       <div className="h-6 w-16 bg-muted animate-pulse rounded-full"></div>
-                       <div className="h-6 w-20 bg-muted animate-pulse rounded-full"></div>
-                    </div>
-                  ) : (
-                    suggestions.map(sug => (
-                      <button 
-                        key={sug}
-                        onClick={() => processTextCommand(`add 1 ${sug}`)}
-                        className="px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1 shadow-sm"
-                        title={suggestionsReason}
-                      >
-                        <Plus className="h-3 w-3" /> {sug}
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
+               </div>
             </div>
 
             <ScrollArea className="flex-1 px-4">
               {isLoadingItems ? (
-                <div className="flex flex-col gap-4 py-8">
-                   {[1,2,3].map(i => (
-                     <div key={i} className="w-full h-20 bg-muted/40 animate-pulse rounded-3xl border border-border" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-8">
+                   {[1,2,3,4].map(i => (
+                     <div key={i} className="w-full h-20 bg-muted/40 animate-pulse rounded-xl border border-border" />
                    ))}
                 </div>
-              ) : filteredItems.length === 0 ? (
+              ) : filteredItems.length === 0 && suggestions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                   <ShoppingCart className="mb-4 h-12 w-12 opacity-20" />
                   <p>Your list is empty.</p>
                 </div>
               ) : (
-                <div className="space-y-4 py-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                   {filteredItems.map((item) => (
-                    <Card key={item.id} className={`overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 backdrop-blur-sm border-2 rounded-3xl ${getCategoryBorder(item.category)} ${item.is_completed ? 'bg-muted/10 border-dashed opacity-60' : 'bg-background/80 shadow-sm'}`}>
-                      <CardContent className="flex items-center justify-between p-5">
+                    <Card key={item.id} className={`overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 backdrop-blur-md border-2 rounded-2xl ${getCategoryBorder(item.category)} ${item.is_completed ? 'bg-muted/30 border-dashed opacity-50' : 'bg-white/80 dark:bg-zinc-900/80 shadow-md'}`}>
+                      <CardContent className="flex items-center justify-between p-4">
                         <div className="flex items-center gap-4">
                           <button 
                              onClick={() => toggleItemStatus(item)} 
@@ -722,6 +748,28 @@ export default function ShoppingAssistant() {
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  
+                  {/* Inline AI Suggestions */}
+                  {isLoadingSuggestions ? (
+                    <div className="w-full h-20 bg-blue-50/50 dark:bg-blue-900/10 animate-pulse rounded-xl border-2 border-dashed border-blue-200 dark:border-blue-800" />
+                  ) : suggestions.map(sug => (
+                    <Card 
+                      key={sug} 
+                      onClick={() => processTextCommand(`add 1 ${sug}${activeListName ? ` to ${activeListName}` : ""}`)}
+                      className="overflow-hidden transition-all duration-300 hover:shadow-md hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer backdrop-blur-sm border-2 border-dashed border-blue-200 dark:border-blue-800 rounded-xl bg-transparent opacity-80"
+                      title={suggestionsReason}
+                    >
+                      <CardContent className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-4">
+                          <Plus className="h-5 w-5 text-blue-500" />
+                          <div>
+                            <h3 className="font-medium text-blue-600 dark:text-blue-400">{sug}</h3>
+                            <Badge variant="secondary" className="text-[10px] mt-1 text-blue-500 bg-blue-100 dark:bg-blue-900/40">AI Suggestion</Badge>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -798,7 +846,7 @@ export default function ShoppingAssistant() {
             </Button>
           </div>
           
-          <div className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold">
+          <div className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground/30 font-semibold opacity-30 hover:opacity-100 transition-opacity duration-300 cursor-default">
             Developed by Jay Ajitkumar Patil
           </div>
         </div>

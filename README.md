@@ -14,7 +14,7 @@ A highly intelligent, voice-first shopping assistant that uses advanced NLP (Nat
 
 ## 🛠️ Tech Stack
 - **Frontend**: Next.js 14, React 19, Tailwind CSS v4, Lucide React (Icons), Shadcn UI components.
-- **Backend**: FastAPI (Python), SQLite (extensible to PostgreSQL via SQLAlchemy), JWT Authentication.
+- **Backend**: FastAPI (Python), PostgreSQL (Neon via SQLAlchemy), JWT Authentication.
 - **AI / NLP**: Google Gemini API (`gemini-1.5-flash`), `react-speech-recognition` for browser-based speech-to-text.
 
 ## 🎨 UX & Error Handling Approach
