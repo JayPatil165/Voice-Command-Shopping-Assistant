@@ -197,7 +197,7 @@ def parse_voice_command(request: VoiceCommandRequest):
         prompt = f"""Extract shopping intent. {lists_context}
 Return ONLY valid JSON:
 {{
-  "action": "add"|"remove"|"update"|"search"|"suggest"|"create_list"|"delete_list"|"rename_list",
+  "action": "add"|"remove"|"update"|"search"|"suggest"|"delete_list"|"rename_list",
   "target_list_name": "string(optional)",
   "new_list_name": "string(optional)",
   "items": [{{"name": "string", "quantity": "string", "category": "string"}}],
@@ -205,10 +205,9 @@ Return ONLY valid JSON:
 }}
 RULES:
 1. Extract exact quantities. "4kg potatoes" -> name:"potatoes", quantity:"4kg".
-2. If the user mentions a specific list (e.g., "add in a list stationary", "to my groceries list"), you MUST extract that name into `target_list_name` (e.g., "stationary", "groceries").
-3. If the user wants to add items to a new or existing list, ALWAYS set action to "add". Do NOT use "create_list" or "update" if they are also adding items.
-4. If the user JUST wants to create a list without adding items yet (e.g. "create a list called groceries"), set action to "create_list" and put the name in `target_list_name`. Do NOT add any items.
-5. If adding items that require units but omitted (e.g. "add 4 milk"), set 'follow_up_question' to clarify ("Did you mean 4 gallons?"). Do NOT add the item if follow_up_question is set.
+2. If the user mentions a specific list (e.g., "create a list stationary", "add to my groceries list"), you MUST extract that name into `target_list_name` (e.g., "stationary", "groceries").
+3. If the user wants to add items OR create a list, ALWAYS set action to "add". The app will automatically create the list if it doesn't exist.
+4. If adding items that require units but omitted (e.g. "add 4 milk"), set 'follow_up_question' to clarify. Do NOT add the item if follow_up_question is set.
 Cmd: '{request.text}'"""
 
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -222,7 +221,10 @@ Cmd: '{request.text}'"""
         items = parsed.get("items", [])
         for item in items:
             item["id"] = str(uuid.uuid4())
-            if "price" not in item: item["price"] = 0.0
+            item["name"] = str(item.get("name", "Unknown Item"))
+            item["quantity"] = str(item.get("quantity", "1"))
+            item["category"] = str(item.get("category", "General"))
+            item["price"] = float(item.get("price", 0.0))
             
         return IntentResponse(
             action=parsed.get("action", "add"), 
